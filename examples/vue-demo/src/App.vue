@@ -39,7 +39,7 @@
               v-model.trim="demoState.username"
               data-guide="username"
               type="text"
-              placeholder="输入用户名"
+              placeholder="输入 guide-user，或离开输入框"
             />
           </label>
 
@@ -60,6 +60,35 @@
               <option value="calm">舒缓主题</option>
             </select>
           </label>
+
+          <div class="drag-workbench">
+            <div>
+              <h3>拖放任务</h3>
+              <p>把操作卡片拖到投放区。</p>
+            </div>
+
+            <div class="drag-row">
+              <div
+                class="drag-card"
+                :class="{ placed: demoState.dragPlaced }"
+                data-guide="drag-card"
+                draggable="true"
+                @dragstart="handleDragStart"
+              >
+                操作卡片
+              </div>
+
+              <div
+                class="drop-zone"
+                :class="{ active: demoState.dragPlaced }"
+                data-guide="drop-zone"
+                @dragover.prevent
+                @drop.prevent="handleDrop"
+              >
+                {{ demoState.dragPlaced ? '已放置' : '拖到这里' }}
+              </div>
+            </div>
+          </div>
 
           <button type="button" class="button primary save-button" data-guide="save" @click="saveSettings">
             保存
@@ -97,6 +126,10 @@
             <dd>{{ demoState.theme }}</dd>
           </div>
           <div>
+            <dt>dragPlaced</dt>
+            <dd>{{ String(demoState.dragPlaced) }}</dd>
+          </div>
+          <div>
             <dt>saveStatus</dt>
             <dd>{{ demoState.saveStatus }}</dd>
           </div>
@@ -113,6 +146,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { TutorialEngine, type TutorialSnapshot } from '@guide/engine'
+import { createDomConditionHandlers } from '@guide/dom-adapter'
 import { DomTutorialRenderer } from '@guide/dom-renderer'
 import { createDemoTutorialSteps, type DemoTutorialContext } from './demo/tutorialSteps'
 
@@ -121,6 +155,7 @@ type DemoState = {
   username: string
   notificationsEnabled: boolean
   theme: string
+  dragPlaced: boolean
   saveStatus: 'idle' | 'success'
 }
 
@@ -131,6 +166,7 @@ const defaultDemoState = (): DemoState => ({
   username: '',
   notificationsEnabled: false,
   theme: 'default',
+  dragPlaced: false,
   saveStatus: 'idle',
 })
 
@@ -149,6 +185,7 @@ onMounted(() => {
     id: 'settings-demo',
     steps: createDemoTutorialSteps(),
     context: createTutorialContext(),
+    conditionHandlers: createDomConditionHandlers(),
   })
 
   unsubscribeEngine = engine.onChange((nextSnapshot) => {
@@ -196,10 +233,22 @@ function saveSettings(): void {
   demoState.saveStatus = 'success'
 }
 
+function handleDragStart(event: DragEvent): void {
+  event.dataTransfer?.setData('text/plain', 'demo-action-card')
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move'
+  }
+}
+
+function handleDrop(): void {
+  demoState.dragPlaced = true
+}
+
 function createTutorialContext(): DemoTutorialContext {
   return {
     notificationsEnabled: demoState.notificationsEnabled,
     theme: demoState.theme,
+    dragPlaced: demoState.dragPlaced,
     saveStatus: demoState.saveStatus,
   }
 }

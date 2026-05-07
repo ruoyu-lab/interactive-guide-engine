@@ -3,6 +3,7 @@ import type { TutorialContext, TutorialStep } from '@guide/engine'
 export type DemoTutorialContext = TutorialContext & {
   notificationsEnabled: boolean
   theme: string
+  dragPlaced: boolean
   saveStatus: string
 }
 
@@ -19,21 +20,24 @@ export function createDemoTutorialSteps(): TutorialStep[] {
     {
       id: 'enter-username',
       title: '输入用户名',
-      content: '在用户名输入框里输入任意非空内容。',
+      content: '输入 guide-user 会进入下一步；如果离开输入框，也会跳过这个输入步骤。',
       target: '[data-guide="username"]',
       placement: 'right',
-      waitFor: { type: 'input', target: '[data-guide="username"]', value: /\S+/ },
+      waitFor: {
+        type: 'anyOf',
+        conditions: [
+          { type: 'input', target: '[data-guide="username"]', value: 'guide-user' },
+          { type: 'blur', target: '[data-guide="username"]' },
+        ],
+      },
     },
     {
       id: 'enable-notifications',
       title: '打开通知',
-      content: '打开通知开关。引擎会通过外部状态检查确认这一步是否完成。',
+      content: '打开通知开关。DOM adapter 会读取控件变更并确认这一步。',
       target: '[data-guide="notifications"]',
       placement: 'right',
-      waitFor: {
-        type: 'state',
-        check: (context: TutorialContext) => Boolean((context as DemoTutorialContext).notificationsEnabled),
-      },
+      waitFor: { type: 'change', target: '[data-guide="notifications"] input', value: true },
     },
     {
       id: 'choose-theme',
@@ -41,9 +45,18 @@ export function createDemoTutorialSteps(): TutorialStep[] {
       content: '将主题从默认值切换到任意其他选项。',
       target: '[data-guide="theme"]',
       placement: 'right',
+      waitFor: { type: 'change', target: '[data-guide="theme"]', value: /^(?!default$).+/ },
+    },
+    {
+      id: 'place-card',
+      title: '拖放卡片',
+      content: '把操作卡片拖到投放区。DOM adapter 会监听 dragstart 和 drop。',
+      target: '[data-guide="drop-zone"]',
+      placement: 'top',
       waitFor: {
-        type: 'state',
-        check: (context: TutorialContext) => (context as DemoTutorialContext).theme !== 'default',
+        type: 'drag',
+        source: '[data-guide="drag-card"]',
+        target: '[data-guide="drop-zone"]',
       },
     },
     {
@@ -53,8 +66,14 @@ export function createDemoTutorialSteps(): TutorialStep[] {
       target: '[data-guide="save"]',
       placement: 'top',
       waitFor: {
-        type: 'state',
-        check: (context: TutorialContext) => (context as DemoTutorialContext).saveStatus === 'success',
+        type: 'allOf',
+        conditions: [
+          { type: 'click', target: '[data-guide="save"]' },
+          {
+            type: 'state',
+            check: (context: TutorialContext) => (context as DemoTutorialContext).saveStatus === 'success',
+          },
+        ],
       },
     },
   ]

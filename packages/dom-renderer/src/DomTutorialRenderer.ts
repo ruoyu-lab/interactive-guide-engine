@@ -1,17 +1,37 @@
 import type {
   TutorialEngine,
   TutorialPlacement,
+  TutorialResolvedTarget,
   TutorialSnapshot,
   TutorialStep,
+  TutorialTarget,
 } from '../../engine/src'
 
 export type DomTutorialRendererOptions = {
+  mount?: HTMLElement
+  targetResolver?: (target: TutorialTarget) => Element | DOMRect | TutorialResolvedTarget | null | undefined
+  autoScroll?: boolean
+  zIndex?: number
+  controls?: Partial<DomTutorialRendererControls>
+  keyboard?: boolean | Partial<DomTutorialRendererKeyboard>
   completedTitle?: string
   completedContent?: string
   labels?: Partial<DomTutorialRendererLabels>
 }
 
-type DomTutorialRendererLabels = {
+export type DomTutorialRendererControls = {
+  back: boolean
+  skip: boolean
+  next: boolean
+  reset: boolean
+}
+
+export type DomTutorialRendererKeyboard = {
+  escape: boolean
+  navigation: boolean
+}
+
+export type DomTutorialRendererLabels = {
   defaultTitle: string
   progress: (current: number, total: number) => string
   waitingForAction: string
@@ -39,8 +59,20 @@ const defaultLabels: DomTutorialRendererLabels = {
   reset: '重置',
 }
 
+const defaultControls: DomTutorialRendererControls = {
+  back: true,
+  skip: true,
+  next: true,
+  reset: true,
+}
+
+const defaultKeyboard: DomTutorialRendererKeyboard = {
+  escape: true,
+  navigation: true,
+}
+
 type TargetState = {
-  element: Element
+  element?: Element
   rect: DOMRect
 }
 
@@ -87,6 +119,9 @@ export class DomTutorialRenderer {
 
     this.root = document.createElement('div')
     this.root.className = 'tutorial-renderer'
+    if (options.zIndex !== undefined) {
+      this.root.style.zIndex = String(options.zIndex)
+    }
 
     this.highlight = document.createElement('div')
     this.highlight.className = 'tutorial-highlight'
@@ -98,7 +133,8 @@ export class DomTutorialRenderer {
     this.bubble.setAttribute('aria-atomic', 'true')
 
     this.root.append(this.highlight, this.bubble)
-    document.body.append(this.root)
+    const mount = options.mount ?? document.body
+    mount.append(this.root)
 
     if (typeof ResizeObserver !== 'undefined') {
       this.resizeObserver = new ResizeObserver(this.scheduleRender)
@@ -273,7 +309,22 @@ export class DomTutorialRenderer {
 
     const reset = this.createButton(this.labels.reset, () => this.engine.reset(), 'secondary')
 
-    actions.append(previous, skip, next, reset)
+    if (this.isControlEnabled('back')) {
+      actions.append(previous)
+    }
+
+    if (this.isControlEnabled('skip')) {
+      actions.append(skip)
+    }
+
+    if (this.isControlEnabled('next')) {
+      actions.append(next)
+    }
+
+    if (this.isControlEnabled('reset')) {
+      actions.append(reset)
+    }
+
     return actions
   }
 
@@ -288,22 +339,61 @@ export class DomTutorialRenderer {
     return button
   }
 
-  private getTarget(selector?: string): TargetState | undefined {
-    if (!selector) {
-      return undefined
-    }
-
-    const target = document.querySelector(selector)
+  private getTarget(target?: TutorialTarget): TargetState | undefined {
     if (!target) {
       return undefined
     }
 
-    const rect = target.getBoundingClientRect()
+    if (typeof target !== 'string' && target.type === 'rect') {
+      const rect = target.getRect()
+      return rect ? { rect } : undefined
+    }
+
+    const resolvedTarget = this.options.targetResolver?.(target) ?? this.querySelectorTarget(target)
+    if (!resolvedTarget) {
+      return undefined
+    }
+
+    if (resolvedTarget instanceof Element) {
+      const rect = resolvedTarget.getBoundingClientRect()
+      if (rect.width === 0 && rect.height === 0) {
+        return undefined
+      }
+
+      return { element: resolvedTarget, rect }
+    }
+
+    if (this.isResolvedTarget(resolvedTarget)) {
+      return resolvedTarget.rect ? resolvedTarget : undefined
+    }
+
+    const rect = resolvedTarget
     if (rect.width === 0 && rect.height === 0) {
       return undefined
     }
 
-    return { element: target, rect }
+    return { rect }
+  }
+
+  private querySelectorTarget(target: TutorialTarget): Element | undefined {
+    const selector = this.getTargetSelector(target)
+    return selector ? document.querySelector(selector) ?? undefined : undefined
+  }
+
+  private getTargetSelector(target: TutorialTarget): string | undefined {
+    if (typeof target === 'string') {
+      return target
+    }
+
+    if (target.type === 'selector') {
+      return target.value
+    }
+
+    return undefined
+  }
+
+  private isResolvedTarget(target: Element | DOMRect | TutorialResolvedTarget): target is TutorialResolvedTarget {
+    return 'rect' in target
   }
 
   private positionHighlight(rect: DOMRect): void {
@@ -441,17 +531,22 @@ export class DomTutorialRenderer {
   }
 
   private scrollTargetIntoView(step: TutorialStep, target: TargetState | undefined): void {
-    if (!target) {
+    if (!target?.element) {
       this.targetWasAvailable = false
       return
     }
 
+    const hadAvailableTarget = this.targetWasAvailable
+    this.targetWasAvailable = true
+
+    if (this.options.autoScroll === false) {
+      return
+    }
+
     const shouldScroll =
-      !this.targetWasAvailable ||
+      !hadAvailableTarget ||
       this.lastAutoScrolledStepId !== step.id ||
       this.lastAutoScrolledTarget !== target.element
-
-    this.targetWasAvailable = true
 
     if (!shouldScroll) {
       return
@@ -497,13 +592,21 @@ export class DomTutorialRenderer {
       return
     }
 
-    if (event.key === 'Escape' && this.isActiveStep()) {
+    if (!this.isKeyboardEnabled()) {
+      return
+    }
+
+    if (event.key === 'Escape' && this.isActiveStep() && this.isKeyboardEscapeEnabled()) {
       event.preventDefault()
       this.engine.skip()
       return
     }
 
     if (this.shouldIgnoreShortcutTarget(event.target)) {
+      return
+    }
+
+    if (!this.isKeyboardNavigationEnabled()) {
       return
     }
 
@@ -574,6 +677,30 @@ export class DomTutorialRenderer {
 
   private prefersReducedMotion(): boolean {
     return typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  }
+
+  private isControlEnabled(control: keyof DomTutorialRendererControls): boolean {
+    return this.options.controls?.[control] ?? defaultControls[control]
+  }
+
+  private isKeyboardEnabled(): boolean {
+    return this.options.keyboard !== false
+  }
+
+  private isKeyboardEscapeEnabled(): boolean {
+    if (typeof this.options.keyboard === 'object') {
+      return this.options.keyboard.escape ?? defaultKeyboard.escape
+    }
+
+    return defaultKeyboard.escape
+  }
+
+  private isKeyboardNavigationEnabled(): boolean {
+    if (typeof this.options.keyboard === 'object') {
+      return this.options.keyboard.navigation ?? defaultKeyboard.navigation
+    }
+
+    return defaultKeyboard.navigation
   }
 
   private clamp(value: number, min: number, max: number): number {

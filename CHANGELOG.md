@@ -6,6 +6,23 @@ The project follows Semantic Versioning. While the package is in `0.x`, minor
 versions may include API-breaking changes; patch versions are reserved for
 backward-compatible fixes.
 
+## Unreleased
+
+### Added
+
+- Added pluggable condition handlers so DOM operations can be replaced or extended.
+- Added the `dom-adapter` package entry with handlers for click, input, change, focus, blur, submit, hover, keyboard, visible, exists, url, route, drag, and drop conditions.
+- Added `pause()`, `resume()`, `setSteps()`, `allOf`, `anyOf`, `custom` conditions, and step lifecycle callbacks.
+- Added independent API documentation under `docs/api`.
+- Added a real drag-and-drop step to the Vue demo and smoke flow.
+- Updated the demo input step to require exact text or advance on blur.
+- Added generic tutorial context typing, step `showIf` / `skipIf` predicates, condition timeout actions, and selector/rect/virtual target support.
+
+### Changed
+
+- Updated the Vue demo to register DOM handlers explicitly through `createDomConditionHandlers()`.
+- Changed `npm run pack` to generate a real `.tgz` tarball and added `npm run pack:dry` for dry-run inspection.
+
 ## 0.1.0 - 2026-05-08
 
 ### Added

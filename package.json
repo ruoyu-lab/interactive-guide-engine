@@ -19,6 +19,7 @@
   ],
   "files": [
     "dist/package",
+    "docs/api",
     "README.md",
     "CHANGELOG.md"
   ],
@@ -31,6 +32,10 @@
       "types": "./dist/package/types/dom-renderer/src/index.d.ts",
       "import": "./dist/package/dom-renderer.js"
     },
+    "./dom-adapter": {
+      "types": "./dist/package/types/dom-adapter/src/index.d.ts",
+      "import": "./dist/package/dom-adapter.js"
+    },
     "./dom-renderer/style.css": "./dist/package/dom-renderer.css",
     "./package.json": "./package.json"
   },
@@ -41,7 +46,8 @@
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
     "build:package": "vite build --config vite.pack.config.ts && tsc -p tsconfig.pack.json",
-    "pack": "npm run build:package && npm_config_cache=.npm-pack-cache npm pack --dry-run",
+    "pack": "npm run build:package && npm_config_cache=.npm-pack-cache npm pack",
+    "pack:dry": "npm run build:package && npm_config_cache=.npm-pack-cache npm pack --dry-run",
     "preview": "vite preview",
     "preview:demo": "vite preview --host 127.0.0.1 --port 4173 --strictPort",
     "smoke": "npm run build && playwright test --config playwright.smoke.config.ts",

@@ -30,6 +30,10 @@ function flushPromises(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0))
 }
 
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
 const basicSteps: TutorialStep[] = [
   { id: 'intro', content: 'Intro' },
   { id: 'details', content: 'Details' },
@@ -206,6 +210,227 @@ describe('TutorialEngine', () => {
       status: 'running',
       currentStepIndex: 1,
     })
+  })
+
+  it('supports allOf and anyOf composite conditions', async () => {
+    const allOfEngine = new TutorialEngine({
+      id: 'all-of',
+      storage: createMemoryStorage(),
+      context: { ready: false },
+      steps: [
+        {
+          id: 'gate',
+          content: 'Gate',
+          waitFor: {
+            type: 'allOf',
+            conditions: [
+              { type: 'event', name: 'clicked' },
+              { type: 'state', check: (context) => context.ready === true },
+            ],
+          },
+        },
+        { id: 'after', content: 'After' },
+      ],
+    })
+
+    allOfEngine.start()
+    allOfEngine.emit('clicked')
+    await flushPromises()
+    expect(allOfEngine.getSnapshot()).toMatchObject({
+      status: 'waiting',
+      currentStepIndex: 0,
+    })
+
+    allOfEngine.updateContext({ ready: true })
+    await flushPromises()
+    expect(allOfEngine.getSnapshot()).toMatchObject({
+      status: 'running',
+      currentStepIndex: 1,
+    })
+
+    const anyOfEngine = new TutorialEngine({
+      id: 'any-of',
+      storage: createMemoryStorage(),
+      context: { ready: false },
+      steps: [
+        {
+          id: 'gate',
+          content: 'Gate',
+          waitFor: {
+            type: 'anyOf',
+            conditions: [
+              { type: 'event', name: 'skip-gate' },
+              { type: 'state', check: (context) => context.ready === true },
+            ],
+          },
+        },
+        { id: 'after', content: 'After' },
+      ],
+    })
+
+    anyOfEngine.start()
+    anyOfEngine.emit('skip-gate')
+    expect(anyOfEngine.getSnapshot()).toMatchObject({
+      status: 'running',
+      currentStepIndex: 1,
+    })
+  })
+
+  it('supports custom condition handlers', () => {
+    let completeCustomCondition = () => undefined
+    let cleanedUp = false
+
+    const engine = new TutorialEngine({
+      id: 'custom',
+      storage: createMemoryStorage(),
+      conditionHandlers: {
+        'canvas-click': (_condition, controls) => {
+          completeCustomCondition = () => controls.complete()
+          return () => {
+            cleanedUp = true
+          }
+        },
+      },
+      steps: [
+        { id: 'gate', content: 'Gate', waitFor: { type: 'custom', name: 'canvas-click' } },
+        { id: 'after', content: 'After' },
+      ],
+    })
+
+    engine.start()
+    expect(engine.getSnapshot()).toMatchObject({
+      status: 'waiting',
+      currentStepIndex: 0,
+    })
+
+    completeCustomCondition()
+    expect(cleanedUp).toBe(true)
+    expect(engine.getSnapshot()).toMatchObject({
+      status: 'running',
+      currentStepIndex: 1,
+    })
+  })
+
+  it('skips steps using showIf and skipIf predicates', () => {
+    type AccessContext = {
+      role: 'admin' | 'user'
+      completedProfile: boolean
+    }
+
+    const engine = new TutorialEngine<AccessContext>({
+      id: 'gated',
+      storage: createMemoryStorage(),
+      context: {
+        role: 'user',
+        completedProfile: true,
+      },
+      steps: [
+        {
+          id: 'admin-only',
+          content: 'Admin',
+          showIf: (context) => context.role === 'admin',
+        },
+        {
+          id: 'profile',
+          content: 'Profile',
+          skipIf: (context) => context.completedProfile,
+        },
+        { id: 'visible', content: 'Visible' },
+      ],
+    })
+
+    engine.start()
+    expect(engine.getSnapshot()).toMatchObject({
+      status: 'running',
+      currentStepIndex: 2,
+    })
+    expect(engine.getCurrentStep()?.id).toBe('visible')
+  })
+
+  it('handles condition timeout actions', async () => {
+    const engine = new TutorialEngine({
+      id: 'timeout',
+      storage: createMemoryStorage(),
+      steps: [
+        {
+          id: 'gate',
+          content: 'Gate',
+          waitFor: {
+            type: 'event',
+            name: 'ready',
+            timeoutMs: 5,
+            onTimeout: 'skipStep',
+          },
+        },
+        { id: 'after', content: 'After' },
+      ],
+    })
+
+    engine.start()
+    expect(engine.getSnapshot()).toMatchObject({
+      status: 'waiting',
+      currentStepIndex: 0,
+    })
+
+    await delay(20)
+    expect(engine.getSnapshot()).toMatchObject({
+      status: 'running',
+      currentStepIndex: 1,
+    })
+    expect(engine.getCurrentStep()?.id).toBe('after')
+  })
+
+  it('pauses, resumes, and updates step lists', async () => {
+    const engine = new TutorialEngine({
+      id: 'pause',
+      storage: createMemoryStorage(),
+      steps: [
+        { id: 'gate', content: 'Gate', waitFor: { type: 'event', name: 'ready' } },
+        { id: 'after', content: 'After' },
+      ],
+    })
+
+    engine.start()
+    engine.pause()
+    expect(engine.getSnapshot()).toMatchObject({
+      status: 'paused',
+      currentStepIndex: 0,
+      canGoNext: false,
+    })
+
+    engine.emit('ready')
+    expect(engine.getSnapshot()).toMatchObject({
+      status: 'paused',
+      currentStepIndex: 0,
+    })
+
+    engine.resume()
+    await flushPromises()
+    expect(engine.getSnapshot()).toMatchObject({
+      status: 'running',
+      currentStepIndex: 1,
+    })
+
+    engine.setSteps([
+      { id: 'intro', content: 'Intro' },
+      { id: 'replacement', content: 'Replacement' },
+    ], { currentStepId: 'replacement' })
+
+    expect(engine.getCurrentStep()?.id).toBe('replacement')
+  })
+
+  it('ignores invalid stored progress', () => {
+    const storage = createMemoryStorage({
+      'tutorial:invalid:progress': '{broken',
+    })
+
+    const engine = new TutorialEngine({ id: 'invalid', steps: basicSteps, storage })
+
+    expect(engine.getSnapshot()).toMatchObject({
+      status: 'idle',
+      currentStepIndex: -1,
+    })
+    expect(storage.read('tutorial:invalid:progress')).toBeNull()
   })
 
   it('restores progress from injected storage', () => {
