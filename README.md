@@ -1,35 +1,206 @@
 # Interactive Guide Engine
 
-Universal Interactive Guide Engine 是一个通用交互式教程引导引擎。
-
-它不是普通的“下一步弹窗教程”。它的核心流程是：
+Universal Interactive Guide Engine 是一个通用交互式教程引导引擎。它不是普通的“下一步弹窗教程”，核心流程是：
 
 ```txt
 显示提示 -> 等待用户完成真实操作 -> 判断操作是否正确 -> 自动进入下一步
 ```
 
-本项目当前是 MVP：核心引擎、基础 DOM Renderer 和一个可直接运行的通用 Web 设置流程 demo。项目不绑定游戏、节点编辑器、交易系统、后台系统或任何特定业务领域。
+项目当前包含框架无关的核心 engine、基础 DOM renderer，以及一个 Vue demo。核心包不绑定游戏、节点编辑器、交易系统、后台系统或任何特定业务领域。
 
-## 如何运行 demo
+## 安装与 CSS
 
-```bash
-npm install
-npm run dev
+包产物通过 `npm run build:package` 输出到 `dist/package`。发布或本地 tarball 安装后这样使用：
+
+```ts
+import { TutorialEngine, type TutorialStep } from 'interactive-guide-engine'
+import { DomTutorialRenderer } from 'interactive-guide-engine/dom-renderer'
+import 'interactive-guide-engine/dom-renderer/style.css'
 ```
 
-启动后打开终端输出的本地地址，通常是：
+如果只使用核心 engine，可以不引入 DOM renderer 和 CSS。只要使用 `DomTutorialRenderer`，就需要引入 `interactive-guide-engine/dom-renderer/style.css`，否则遮罩、高亮和气泡没有默认样式。
 
-```txt
-http://localhost:5173
+## API 使用示例
+
+```ts
+import { TutorialEngine, type TutorialStep } from 'interactive-guide-engine'
+import { DomTutorialRenderer } from 'interactive-guide-engine/dom-renderer'
+import 'interactive-guide-engine/dom-renderer/style.css'
+
+type SettingsContext = {
+  notificationsEnabled: boolean
+  saveStatus: 'idle' | 'success'
+}
+
+const steps: TutorialStep[] = [
+  {
+    id: 'open-settings',
+    title: '打开设置',
+    content: '点击设置按钮。',
+    target: '[data-guide="open-settings"]',
+    waitFor: { type: 'click', target: '[data-guide="open-settings"]' },
+  },
+  {
+    id: 'enter-name',
+    title: '输入名称',
+    content: '输入任意非空名称。',
+    target: '[data-guide="name"]',
+    waitFor: { type: 'input', target: '[data-guide="name"]', value: /\S+/ },
+  },
+  {
+    id: 'enable-notifications',
+    title: '打开通知',
+    content: '打开通知开关。',
+    target: '[data-guide="notifications"]',
+    waitFor: {
+      type: 'state',
+      check: (context) => Boolean((context as SettingsContext).notificationsEnabled),
+    },
+  },
+]
+
+const engine = new TutorialEngine({
+  id: 'settings-onboarding',
+  steps,
+  context: {
+    notificationsEnabled: false,
+    saveStatus: 'idle',
+  },
+})
+
+const renderer = new DomTutorialRenderer(engine)
+
+engine.onChange((snapshot) => {
+  console.log(snapshot.status, snapshot.currentStep?.id)
+})
+
+engine.start()
+
+// 当业务状态变化时，把最新状态交回 engine。
+engine.updateContext({
+  notificationsEnabled: true,
+  saveStatus: 'idle',
+})
+
+// 单页应用卸载时调用，清理 DOM 和事件监听。
+function disposeTutorial(): void {
+  renderer.destroy()
+  engine.destroy()
+}
 ```
 
-## 核心理念
+核心 API：
 
-- 核心 engine 只负责教程状态、步骤流转、条件判断、事件通知、进度保存和副作用清理。
-- DOM renderer 只负责遮罩、高亮、提示气泡、按钮和进度显示。
-- demo 业务只负责页面元素、真实交互和 demo 状态。
-- 业务状态检查通过 `waitFor.state.check(context)` 传入，核心 engine 不知道 `username`、`theme`、`notification` 等业务字段。
-- 带 `waitFor` 的步骤不能通过“下一步”按钮绕过，必须等真实操作满足条件后自动推进。
+- `start()`：开始或恢复教程。
+- `next()` / `prev()`：手动前进或后退；带 `waitFor` 且未满足条件的步骤不能被 `next()` 绕过。
+- `skip()` / `finish()`：跳过或完成教程。
+- `goToStep(stepId)`：跳到指定步骤。
+- `getCurrentStep()` / `getStatus()` / `getSnapshot()`：读取当前状态。
+- `onChange(listener)`：订阅状态快照，返回取消订阅函数。
+- `updateContext(context)`：更新外部业务状态，供 `waitFor.state.check` 判断。
+- `emit(eventName, payload)`：发送自定义事件，供 `waitFor.event` 判断。
+- `reset()`：回到 `idle`，清空该教程的进度存储。
+- `destroy()`：清理监听器和等待条件。
+
+支持的等待条件：
+
+- 点击目标元素：`{ type: 'click', target: string }`
+- 输入目标元素：`{ type: 'input', target: string, value?: string | RegExp }`
+- 接收通用事件：`{ type: 'event', name: string }`
+- 检查外部状态：`{ type: 'state', check: (context) => boolean | Promise<boolean> }`
+
+## Vue 集成
+
+Vue 中推荐把 engine 和 renderer 作为组件生命周期资源创建和销毁，把业务状态通过 `watch` 同步给 engine：
+
+```vue
+<script setup lang="ts">
+import { onBeforeUnmount, onMounted, reactive, watch } from 'vue'
+import { TutorialEngine } from 'interactive-guide-engine'
+import { DomTutorialRenderer } from 'interactive-guide-engine/dom-renderer'
+import 'interactive-guide-engine/dom-renderer/style.css'
+
+const settings = reactive({
+  notificationsEnabled: false,
+  theme: 'default',
+})
+
+let engine: TutorialEngine | undefined
+let renderer: DomTutorialRenderer | undefined
+let unsubscribe: (() => void) | undefined
+
+onMounted(() => {
+  engine = new TutorialEngine({
+    id: 'vue-settings',
+    steps: createSettingsSteps(),
+    context: { ...settings },
+  })
+
+  unsubscribe = engine.onChange((snapshot) => {
+    console.log(snapshot.currentStep?.id)
+  })
+
+  renderer = new DomTutorialRenderer(engine)
+})
+
+watch(settings, () => engine?.updateContext({ ...settings }), { deep: true })
+
+onBeforeUnmount(() => {
+  unsubscribe?.()
+  renderer?.destroy()
+  engine?.destroy()
+})
+</script>
+```
+
+当前 demo 的完整 Vue 接入在 `examples/vue-demo/src/App.vue`，教程步骤在 `examples/vue-demo/src/demo/tutorialSteps.ts`。
+
+## 纯 DOM 集成
+
+纯 DOM 页面可以直接创建 engine 与 renderer，并在原生事件里更新业务状态：
+
+```ts
+import { TutorialEngine } from 'interactive-guide-engine'
+import { DomTutorialRenderer } from 'interactive-guide-engine/dom-renderer'
+import 'interactive-guide-engine/dom-renderer/style.css'
+
+const state = {
+  theme: 'default',
+  saveStatus: 'idle',
+}
+
+const engine = new TutorialEngine({
+  id: 'plain-dom-settings',
+  steps: [
+    {
+      id: 'choose-theme',
+      content: '选择一个非默认主题。',
+      target: '[data-guide="theme"]',
+      waitFor: {
+        type: 'state',
+        check: (context) => context.theme !== 'default',
+      },
+    },
+  ],
+  context: state,
+})
+
+const renderer = new DomTutorialRenderer(engine)
+
+document.querySelector('[data-guide="theme"]')?.addEventListener('change', (event) => {
+  state.theme = (event.target as HTMLSelectElement).value
+  engine.updateContext({ ...state })
+})
+
+document.querySelector('[data-guide="start"]')?.addEventListener('click', () => {
+  engine.start()
+})
+
+window.addEventListener('beforeunload', () => {
+  renderer.destroy()
+  engine.destroy()
+})
+```
 
 ## Demo 教程流程
 
@@ -47,60 +218,97 @@ http://localhost:5173
 教程完成：你已经完成了一个真实交互流程。
 ```
 
-## 当前 MVP 支持能力
+教程状态和当前步骤会保存到 `localStorage`。刷新页面后可以恢复当前教程进度；demo 业务状态也会保存，便于验证刷新恢复。
 
-核心 API：
+## 目录结构
 
-- `start()`
-- `next()`
-- `prev()`
-- `skip()`
-- `finish()`
-- `goToStep(stepId)`
-- `getCurrentStep()`
-- `getStatus()`
-- `onChange(listener)`
-- `destroy()`
-- `reset()`
-- `updateContext(context)`
-- `emit(eventName, payload)`
+```txt
+packages/
+  engine/                 # 通用教程引擎，不依赖 demo 或 UI 框架
+  dom-renderer/           # 基础 DOM 渲染层，依赖 engine 的公开类型
+examples/
+  vue-demo/               # Vue demo，只负责示例页面和示例业务状态
+tests/
+  engine/                 # 核心 engine 单元测试
+  smoke/                  # Playwright smoke 用例
+dist/
+  demo/                   # npm run build 输出的 demo 产物
+  package/                # npm run build:package 输出的包产物
+playwright.smoke.config.ts
+vite.config.ts            # demo 开发、构建、预览配置
+vite.pack.config.ts       # npm 包构建配置
+tsconfig.pack.json        # npm 包声明文件构建配置
+```
 
-教程状态：
+demo 通过 Vite alias 引用 `packages` 源码，核心 engine 不从 demo 目录反向引用任何内容。
 
-- `idle`
-- `running`
-- `waiting`
-- `completed`
-- `skipped`
+## 本地命令
 
-条件类型：
+```bash
+npm install
+npm run dev
+```
 
-- 点击目标元素：`{ type: 'click', target: string }`
-- 输入目标元素：`{ type: 'input', target: string, value?: string | RegExp }`
-- 接收通用事件：`{ type: 'event', name: string }`
-- 检查外部状态：`{ type: 'state', check: (context) => boolean | Promise<boolean> }`
+启动 demo 开发服务器后打开终端输出的本地地址，通常是 `http://localhost:5173`。
 
-DOM Renderer 支持：
+运行单元测试：
 
-- 遮罩层
-- 高亮目标元素
-- 提示气泡
-- 标题和内容
-- 当前步骤进度
-- 上一步、跳过、下一步、重置按钮
-- 完成状态提示
+```bash
+npm test
+```
 
-进度保存：
+构建 demo：
 
-- 教程状态和当前步骤会保存到 `localStorage`。
-- 刷新页面后可以恢复当前教程进度。
-- “重置教程”会清空教程进度，便于反复测试。
+```bash
+npm run build
+```
+
+运行 Playwright smoke：
+
+```bash
+npm run smoke
+```
+
+`npm run smoke` 会先执行 `npm run build`，再通过 `vite preview` 预览 `dist/demo`，不会要求启动 `npm run dev`。如果本机还没有 Playwright 浏览器，需要先安装 Chromium：
+
+```bash
+npx playwright install chromium
+```
+
+本地查看预览产物：
+
+```bash
+npm run preview:demo
+```
+
+预览 npm 包内容：
+
+```bash
+npm run pack
+```
+
+`npm run pack` 会先构建 `dist/package`，再执行 `npm pack --dry-run`，用于检查 tarball 内会包含哪些文件，不会发布到 npm。
+
+## 发布准备与版本策略
+
+包已经移除 `private`，并补齐 `description`、`keywords`、`license`、`main`、`module`、`types`、`exports`、`files` 和 `engines`。当前发布准备策略是“可 pack，不自动发布”：
+
+1. 修改代码和文档后运行 `npm test` 与 `npm run smoke`。
+2. 运行 `npm run pack`，检查 dry-run 输出中只包含 `dist/package`、`README.md`、`CHANGELOG.md` 和 `package.json` 等必要文件。
+3. 按 Semantic Versioning 更新 `package.json` 和 `CHANGELOG.md`。
+4. 只有确认 tarball 内容、API 文档和变更记录后，才手动执行发布命令。
+
+版本策略：
+
+- `0.1.0`：首个可 pack 的 MVP 包版本。
+- `0.x`：API 仍可能调整，minor 版本可以包含破坏性变更，但必须记录在 `CHANGELOG.md`。
+- `patch`：仅用于向后兼容的 bug fix、文档修正或 smoke 脚本修正。
+- `1.0.0`：核心 engine API、DOM renderer API 和 CSS 入口稳定后再发布。
 
 ## 后续路线图
 
-- 抽离 engine 和 renderer 的公开包入口。
-- 增加单元测试覆盖状态流转、条件判断和进度恢复。
+- 增加单元测试覆盖更多状态流转、条件判断和进度恢复。
 - 增加更完善的定位策略，例如碰撞避让和滚动定位。
 - 增加可插拔 renderer，让 Vue、React、Svelte 或纯 DOM 项目都能复用核心 engine。
 - 增加多教程实例管理和命名空间存储策略。
-- 准备 npm 包构建配置、类型声明输出和最小发布文档。
+- 增加 tarball 安装验证。

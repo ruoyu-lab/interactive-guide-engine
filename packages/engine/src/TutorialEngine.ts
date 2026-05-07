@@ -4,6 +4,7 @@ import type {
   TutorialContext,
   TutorialEngineOptions,
   TutorialSnapshot,
+  TutorialStorage,
   TutorialStatus,
   TutorialStep,
 } from './types'
@@ -16,6 +17,7 @@ type StoredProgress = {
 export class TutorialEngine {
   private readonly steps: TutorialStep[]
   private readonly storageKey: string
+  private readonly storage: TutorialStorage
   private readonly listeners = new Set<TutorialChangeListener>()
   private readonly eventQueue = new Map<string, unknown[]>()
   private status: TutorialStatus = 'idle'
@@ -30,6 +32,7 @@ export class TutorialEngine {
     this.steps = options.steps
     this.context = options.context ?? {}
     this.storageKey = options.storageKey ?? `tutorial:${options.id}:progress`
+    this.storage = options.storage ?? getDefaultStorage()
     this.restoreProgress()
 
     if (this.status === 'running' || this.status === 'waiting') {
@@ -181,7 +184,7 @@ export class TutorialEngine {
     this.currentStepIndex = -1
     this.status = 'idle'
     this.conditionMet = false
-    window.localStorage.removeItem(this.storageKey)
+    this.storage.removeItem(this.storageKey)
     this.notify()
   }
 
@@ -331,11 +334,11 @@ export class TutorialEngine {
       currentStepId: currentStep?.id,
     }
 
-    window.localStorage.setItem(this.storageKey, JSON.stringify(progress))
+    this.storage.setItem(this.storageKey, JSON.stringify(progress))
   }
 
   private restoreProgress(): void {
-    const rawProgress = window.localStorage.getItem(this.storageKey)
+    const rawProgress = this.storage.getItem(this.storageKey)
     if (!rawProgress) {
       return
     }
@@ -380,4 +383,12 @@ export class TutorialEngine {
 
     return value === expected
   }
+}
+
+function getDefaultStorage(): TutorialStorage {
+  if (typeof window === 'undefined') {
+    throw new Error('TutorialEngine requires a storage implementation outside browser environments.')
+  }
+
+  return window.localStorage
 }

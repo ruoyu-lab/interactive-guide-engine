@@ -5,7 +5,7 @@
         <p class="eyebrow">Universal Interactive Guide Engine</p>
         <h1>Interactive Guide Engine Demo</h1>
         <p class="intro-copy">
-          A minimal tutorial engine that waits for real user actions before moving forward.
+          一个等待用户完成真实操作后才自动推进的最小教程引擎 demo。
         </p>
       </div>
 
@@ -20,7 +20,7 @@
         <div class="card-header">
           <div>
             <h2>示例设置卡片</h2>
-            <p>Use the controls below to complete the guided setup.</p>
+            <p>使用下方控件完成一次真实的设置流程。</p>
           </div>
           <button
             type="button"
@@ -46,7 +46,7 @@
           <label class="switch-row" data-guide="notifications">
             <span>
               <strong>通知开关</strong>
-              <small>{{ demoState.notificationsEnabled ? 'enabled' : 'disabled' }}</small>
+              <small>{{ demoState.notificationsEnabled ? '已开启' : '已关闭' }}</small>
             </span>
             <input v-model="demoState.notificationsEnabled" type="checkbox" role="switch" />
           </label>
@@ -55,9 +55,9 @@
             <span>主题</span>
             <select v-model="demoState.theme" data-guide="theme">
               <option value="default">默认主题</option>
-              <option value="light">Light</option>
-              <option value="contrast">Contrast</option>
-              <option value="calm">Calm</option>
+              <option value="light">明亮主题</option>
+              <option value="contrast">高对比主题</option>
+              <option value="calm">舒缓主题</option>
             </select>
           </label>
 
@@ -70,7 +70,7 @@
       </div>
 
       <aside class="state-panel">
-        <h2>当前 demo state</h2>
+        <h2>当前 demo 状态</h2>
         <dl>
           <div>
             <dt>tutorialStatus</dt>
@@ -90,7 +90,7 @@
           </div>
           <div>
             <dt>notifications</dt>
-            <dd>{{ demoState.notificationsEnabled ? 'enabled' : 'disabled' }}</dd>
+            <dd>{{ demoState.notificationsEnabled ? 'enabled（已开启）' : 'disabled（已关闭）' }}</dd>
           </div>
           <div>
             <dt>theme</dt>
@@ -112,8 +112,8 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
-import { TutorialEngine, type TutorialSnapshot } from './engine'
-import { DomTutorialRenderer } from './renderer/DomTutorialRenderer'
+import { TutorialEngine, type TutorialSnapshot } from '@guide/engine'
+import { DomTutorialRenderer } from '@guide/dom-renderer'
 import { createDemoTutorialSteps, type DemoTutorialContext } from './demo/tutorialSteps'
 
 type DemoState = {

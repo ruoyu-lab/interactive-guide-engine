@@ -10,6 +10,7 @@
   border: 2px solid #f6c343;
   border-radius: 8px;
   box-shadow: 0 0 0 9999px rgb(12 18 28 / 52%);
+  pointer-events: none;
   transition:
     left 140ms ease,
     top 140ms ease,
@@ -20,7 +21,9 @@
 .tutorial-bubble {
   position: fixed;
   width: min(360px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
   padding: 16px;
+  overflow: auto;
   color: #18202f;
   background: #ffffff;
   border: 1px solid #d8dee8;
@@ -57,6 +60,17 @@
   border: 1px solid #f4d675;
   border-radius: 6px;
   font-size: 13px;
+}
+
+.tutorial-target-unavailable {
+  margin-top: 10px;
+  padding: 8px 10px;
+  color: #8a3b12;
+  background: #fff0e8;
+  border: 1px solid #ffc8aa;
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1.45;
 }
 
 .tutorial-actions {

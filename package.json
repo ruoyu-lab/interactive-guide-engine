@@ -1,20 +1,62 @@
 {
   "name": "interactive-guide-engine",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
+  "description": "Framework-agnostic interactive tutorial engine with DOM renderer for real user-action guided flows.",
+  "license": "MIT",
   "type": "module",
+  "main": "./dist/package/engine.js",
+  "module": "./dist/package/engine.js",
+  "types": "./dist/package/types/engine/src/index.d.ts",
+  "keywords": [
+    "interactive-guide",
+    "tutorial",
+    "onboarding",
+    "guided-tour",
+    "dom"
+  ],
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "files": [
+    "dist/package",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/package/types/engine/src/index.d.ts",
+      "import": "./dist/package/engine.js"
+    },
+    "./dom-renderer": {
+      "types": "./dist/package/types/dom-renderer/src/index.d.ts",
+      "import": "./dist/package/dom-renderer.js"
+    },
+    "./dom-renderer/style.css": "./dist/package/dom-renderer.css",
+    "./package.json": "./package.json"
+  },
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
-    "preview": "vite preview"
+    "build:package": "vite build --config vite.pack.config.ts && tsc -p tsconfig.pack.json",
+    "pack": "npm run build:package && npm_config_cache=.npm-pack-cache npm pack --dry-run",
+    "preview": "vite preview",
+    "preview:demo": "vite preview --host 127.0.0.1 --port 4173 --strictPort",
+    "smoke": "npm run build && playwright test --config playwright.smoke.config.ts",
+    "smoke:headed": "npm run build && playwright test --config playwright.smoke.config.ts --headed",
+    "test:smoke": "npm run smoke",
+    "test": "vitest run"
   },
-  "dependencies": {
-    "vue": "^3.5.13"
-  },
+  "dependencies": {},
   "devDependencies": {
+    "@playwright/test": "^1.55.0",
     "@vitejs/plugin-vue": "^5.2.1",
     "typescript": "^5.8.3",
     "vite": "^6.3.5",
+    "vitest": "^3.2.4",
+    "vue": "^3.5.13",
     "vue-tsc": "^2.2.10"
   }
 }

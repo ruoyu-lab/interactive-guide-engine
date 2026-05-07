@@ -30,9 +30,16 @@ export type TutorialSnapshot = {
 
 export type TutorialChangeListener = (snapshot: TutorialSnapshot) => void
 
+export type TutorialStorage = {
+  getItem(key: string): string | null
+  setItem(key: string, value: string): void
+  removeItem(key: string): void
+}
+
 export type TutorialEngineOptions = {
   id: string
   steps: TutorialStep[]
   context?: TutorialContext
   storageKey?: string
+  storage?: TutorialStorage
 }

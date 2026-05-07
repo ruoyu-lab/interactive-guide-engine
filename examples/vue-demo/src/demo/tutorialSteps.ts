@@ -1,4 +1,4 @@
-import type { TutorialContext, TutorialStep } from '../engine'
+import type { TutorialContext, TutorialStep } from '@guide/engine'
 
 export type DemoTutorialContext = TutorialContext & {
   notificationsEnabled: boolean

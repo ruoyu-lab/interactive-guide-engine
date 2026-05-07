@@ -11,7 +11,11 @@
     "moduleDetection": "force",
     "noEmit": true,
     "jsx": "preserve",
-    "strict": true
+    "strict": true,
+    "paths": {
+      "@guide/engine": ["./packages/engine/src"],
+      "@guide/dom-renderer": ["./packages/dom-renderer/src"]
+    }
   },
-  "include": ["src/**/*.ts", "src/**/*.vue"]
+  "include": ["packages/**/*.ts", "examples/vue-demo/src/**/*.ts", "examples/vue-demo/src/**/*.vue"]
 }

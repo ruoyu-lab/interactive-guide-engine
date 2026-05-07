@@ -7,5 +7,6 @@ export type {
   TutorialPlacement,
   TutorialSnapshot,
   TutorialStatus,
+  TutorialStorage,
   TutorialStep,
 } from './types'
