@@ -7,6 +7,7 @@
 ```ts
 import { TutorialEngine } from 'interactive-guide-engine'
 import { createDomConditionHandlers } from 'interactive-guide-engine/dom-adapter'
+import { DomTutorialEffects } from 'interactive-guide-engine/dom-effects'
 import { DomTutorialRenderer } from 'interactive-guide-engine/dom-renderer'
 import 'interactive-guide-engine/dom-renderer/style.css'
 ```
@@ -15,6 +16,7 @@ import 'interactive-guide-engine/dom-renderer/style.css'
 
 - `interactive-guide-engine`：核心状态机，不包含 DOM 渲染逻辑。
 - `interactive-guide-engine/dom-adapter`：浏览器 DOM 操作条件处理器，例如 click、input、change、visible、route。
+- `interactive-guide-engine/dom-effects`：可选 DOM 动画层，例如光标点击、输入预览、拖动轨迹，以及可替换光标样式。
 - `interactive-guide-engine/dom-renderer`：默认 DOM 高亮和气泡渲染器。
 - `interactive-guide-engine/dom-renderer/style.css`：默认 renderer 样式。
 
@@ -23,6 +25,7 @@ import 'interactive-guide-engine/dom-renderer/style.css'
 - [核心 Engine API](./engine.md)
 - [等待条件和操作类型](./conditions.md)
 - [DOM Adapter API](./dom-adapter.md)
+- [DOM Effects API](./dom-effects.md)
 - [DOM Renderer API](./dom-renderer.md)
 
 ## 推荐组合
@@ -38,6 +41,7 @@ const engine = new TutorialEngine({
 })
 
 const renderer = new DomTutorialRenderer(engine)
+const effects = new DomTutorialEffects(engine)
 engine.start()
 ```
 

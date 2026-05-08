@@ -36,6 +36,10 @@
       "types": "./dist/package/types/dom-adapter/src/index.d.ts",
       "import": "./dist/package/dom-adapter.js"
     },
+    "./dom-effects": {
+      "types": "./dist/package/types/dom-effects/src/index.d.ts",
+      "import": "./dist/package/dom-effects.js"
+    },
     "./dom-renderer/style.css": "./dist/package/dom-renderer.css",
     "./package.json": "./package.json"
   },

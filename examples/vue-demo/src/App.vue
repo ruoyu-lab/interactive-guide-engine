@@ -100,6 +100,23 @@
 
       <aside class="state-panel">
         <h2>当前 demo 状态</h2>
+        <div class="cursor-style-control" data-guide="cursor-style">
+          <div class="panel-section-title">光标样式</div>
+          <div class="cursor-style-options" role="group" aria-label="光标样式">
+            <button
+              v-for="option in cursorStyleOptions"
+              :key="option.value"
+              type="button"
+              class="cursor-style-button"
+              :class="{ active: cursorStyle === option.value }"
+              :aria-pressed="cursorStyle === option.value"
+              @click="setCursorStyle(option.value)"
+            >
+              <span class="cursor-style-swatch" :data-style="option.value"></span>
+              <span>{{ option.label }}</span>
+            </button>
+          </div>
+        </div>
         <dl>
           <div>
             <dt>tutorialStatus</dt>
@@ -147,6 +164,7 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { TutorialEngine, type TutorialSnapshot } from '@guide/engine'
 import { createDomConditionHandlers } from '@guide/dom-adapter'
+import { DomTutorialEffects, type DomTutorialCursorStyleName } from '@guide/dom-effects'
 import { DomTutorialRenderer } from '@guide/dom-renderer'
 import { createDemoTutorialSteps, type DemoTutorialContext } from './demo/tutorialSteps'
 
@@ -171,10 +189,22 @@ const defaultDemoState = (): DemoState => ({
 })
 
 const demoState = reactive<DemoState>(loadDemoState())
-const snapshot = ref<TutorialSnapshot>()
+const snapshot = ref<TutorialSnapshot<DemoTutorialContext>>()
+const cursorStyle = ref<DomTutorialCursorStyleName>('macos')
 
-let engine: TutorialEngine | undefined
-let renderer: DomTutorialRenderer | undefined
+const cursorStyleOptions: Array<{ value: DomTutorialCursorStyleName; label: string }> = [
+  { value: 'macos', label: 'macOS' },
+  { value: 'macos-dark', label: '深色' },
+  { value: 'glass', label: '玻璃' },
+  { value: 'ring', label: '光环' },
+  { value: 'touch', label: '触控' },
+  { value: 'dot', label: '圆点' },
+  { value: 'spotlight', label: '自定义' },
+]
+
+let engine: TutorialEngine<DemoTutorialContext> | undefined
+let renderer: DomTutorialRenderer<DemoTutorialContext> | undefined
+let effects: DomTutorialEffects<DemoTutorialContext> | undefined
 let unsubscribeEngine: (() => void) | undefined
 
 const tutorialStatus = computed(() => snapshot.value?.status ?? 'idle')
@@ -197,11 +227,20 @@ onMounted(() => {
     completedContent: '教程完成：你已经完成了一个真实交互流程。',
   })
 
+  effects = new DomTutorialEffects(engine)
+  effects.registerCursorStyle('spotlight', {
+    html: '<span class="demo-cursor-spotlight"></span>',
+    hotspot: { x: 20, y: 20 },
+    rippleColor: '#bf5af2',
+  })
+  effects.setCursorStyle(cursorStyle.value)
+
   engine.updateContext(createTutorialContext())
 })
 
 onBeforeUnmount(() => {
   unsubscribeEngine?.()
+  effects?.destroy()
   renderer?.destroy()
   engine?.destroy()
 })
@@ -223,6 +262,12 @@ function resetTutorial(): void {
   Object.assign(demoState, defaultDemoState())
   window.localStorage.removeItem(demoStateStorageKey)
   engine?.reset()
+}
+
+function setCursorStyle(nextCursorStyle: DomTutorialCursorStyleName): void {
+  cursorStyle.value = nextCursorStyle
+  effects?.setCursorStyle(nextCursorStyle)
+  effects?.playCurrent()
 }
 
 function openSettings(): void {

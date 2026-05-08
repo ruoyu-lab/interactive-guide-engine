@@ -9,6 +9,7 @@ export default defineConfig({
       entry: {
         engine: fileURLToPath(new URL('./packages/engine/src/index.ts', import.meta.url)),
         'dom-adapter': fileURLToPath(new URL('./packages/dom-adapter/src/index.ts', import.meta.url)),
+        'dom-effects': fileURLToPath(new URL('./packages/dom-effects/src/index.ts', import.meta.url)),
         'dom-renderer': fileURLToPath(new URL('./packages/dom-renderer/src/index.ts', import.meta.url)),
       },
       formats: ['es'],

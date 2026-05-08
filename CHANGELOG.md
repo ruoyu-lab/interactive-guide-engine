@@ -17,6 +17,9 @@ backward-compatible fixes.
 - Added a real drag-and-drop step to the Vue demo and smoke flow.
 - Updated the demo input step to require exact text or advance on blur.
 - Added generic tutorial context typing, step `showIf` / `skipIf` predicates, condition timeout actions, and selector/rect/virtual target support.
+- Added step `effects` and the `dom-effects` package entry for cursor click, typing preview, drag, pulse, and shake animations.
+- Added built-in cursor styles plus `setCursorStyle()` and `registerCursorStyle()` APIs for DOM effects.
+- Added `typeText` ghost mode for input-like typing animation without mutating the input value or firing input events.
 
 ### Changed
 

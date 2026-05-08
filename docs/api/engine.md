@@ -86,6 +86,7 @@ type TutorialStep = {
   target?: TutorialTarget
   placement?: 'top' | 'bottom' | 'left' | 'right'
   waitFor?: TutorialCondition
+  effects?: TutorialEffect[]
   showIf?: (context) => boolean
   skipIf?: (context) => boolean
   onEnter?: TutorialStepLifecycleListener
@@ -93,6 +94,18 @@ type TutorialStep = {
   onComplete?: TutorialStepLifecycleListener
 }
 ```
+
+`effects` 是可选视觉演示配置，由具体 renderer/effects 实现消费。光标类效果支持 `delayMs`、`durationMs` 和 `cursorStyle`：
+
+```ts
+{
+  type: 'cursorClick',
+  target: '[data-guide="save"]',
+  cursorStyle: 'macos-dark',
+}
+```
+
+`typeText` 支持 `preview`、`ghost` 和 `perform`。其中 `ghost` 只显示输入动画，不修改真实输入框值，也不触发 `input`。
 
 生命周期回调会收到：
 

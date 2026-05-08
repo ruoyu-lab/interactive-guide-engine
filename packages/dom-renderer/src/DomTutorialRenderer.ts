@@ -1,5 +1,6 @@
 import type {
   TutorialEngine,
+  TutorialContext,
   TutorialPlacement,
   TutorialResolvedTarget,
   TutorialSnapshot,
@@ -85,7 +86,7 @@ type BubblePlacementCandidate = {
 
 let rendererId = 0
 
-export class DomTutorialRenderer {
+export class DomTutorialRenderer<TContext extends TutorialContext = TutorialContext> {
   private readonly root: HTMLDivElement
   private readonly highlight: HTMLDivElement
   private readonly bubble: HTMLDivElement
@@ -98,7 +99,7 @@ export class DomTutorialRenderer {
   private readonly resizeObserver?: ResizeObserver
   private readonly mutationObserver?: MutationObserver
   private observedTarget?: Element
-  private snapshot?: TutorialSnapshot
+  private snapshot?: TutorialSnapshot<TContext>
   private currentStepId?: string
   private lastAutoScrolledStepId?: string
   private lastAutoScrolledTarget?: Element
@@ -107,7 +108,7 @@ export class DomTutorialRenderer {
   private destroyed = false
 
   constructor(
-    private readonly engine: TutorialEngine,
+    private readonly engine: TutorialEngine<TContext>,
     private readonly options: DomTutorialRendererOptions = {},
   ) {
     this.labels = { ...defaultLabels, ...options.labels }
@@ -211,7 +212,7 @@ export class DomTutorialRenderer {
     this.renderStep(currentStep)
   }
 
-  private renderStep(step: TutorialStep): void {
+  private renderStep(step: TutorialStep<TContext>): void {
     this.resetStepStateIfNeeded(step.id)
 
     const target = this.getTarget(step.target)
@@ -530,7 +531,7 @@ export class DomTutorialRenderer {
     this.targetWasAvailable = false
   }
 
-  private scrollTargetIntoView(step: TutorialStep, target: TargetState | undefined): void {
+  private scrollTargetIntoView(step: TutorialStep<TContext>, target: TargetState | undefined): void {
     if (!target?.element) {
       this.targetWasAvailable = false
       return

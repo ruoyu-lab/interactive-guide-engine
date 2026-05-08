@@ -9,6 +9,7 @@ export default defineConfig({
     alias: {
       '@guide/engine': fileURLToPath(new URL('./packages/engine/src', import.meta.url)),
       '@guide/dom-adapter': fileURLToPath(new URL('./packages/dom-adapter/src', import.meta.url)),
+      '@guide/dom-effects': fileURLToPath(new URL('./packages/dom-effects/src', import.meta.url)),
       '@guide/dom-renderer': fileURLToPath(new URL('./packages/dom-renderer/src', import.meta.url)),
     },
   },

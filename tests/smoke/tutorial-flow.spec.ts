@@ -3,7 +3,7 @@ import { expect, type Page, test } from '@playwright/test'
 const completionText = '教程完成：你已经完成了一个真实交互流程。'
 
 test.describe('Vue demo tutorial smoke flow', () => {
-  async function startUsernameStep(page: Page) {
+  async function openSettingsStep(page: Page) {
     await page.goto('/')
     await page.evaluate(() => window.localStorage.clear())
     await page.reload()
@@ -13,14 +13,27 @@ test.describe('Vue demo tutorial smoke flow', () => {
     await expect(page.locator('.tutorial-bubble')).toContainText('输入用户名')
   }
 
+  async function expectGhostTypedUsername(page: Page) {
+    const ghost = page.locator('.tutorial-effect-type-ghost')
+    await expect(ghost).toContainText('guide-user')
+    await expect.poll(async () => {
+      return ghost.evaluate((element) => Number.parseFloat(window.getComputedStyle(element).borderTopLeftRadius))
+    }).toBeGreaterThan(0)
+    await expect(page.locator('[data-guide="username"]')).toHaveValue('')
+    await expect(page.locator('.tutorial-bubble')).toContainText('输入用户名')
+    await expect(page.locator('.state-panel')).toContainText('enter-username')
+  }
+
   test('completes real interactions and restores tutorial state after refresh', async ({ page }) => {
     const bubble = page.locator('.tutorial-bubble')
     const statePanel = page.locator('.state-panel')
 
-    await startUsernameStep(page)
+    await openSettingsStep(page)
+    await expect(page.locator('.tutorial-effects')).toBeAttached()
+    await expect(page.locator('.tutorial-effect-cursor')).toHaveClass(/visible/)
     await expect(page.locator('[data-guide="username"]')).toBeVisible()
-    await expect(statePanel).toContainText('enter-username')
 
+    await expectGhostTypedUsername(page)
     await page.locator('[data-guide="username"]').fill('wrong-user')
     await expect(bubble).toContainText('输入用户名')
     await expect(statePanel).toContainText('enter-username')
@@ -59,13 +72,17 @@ test.describe('Vue demo tutorial smoke flow', () => {
     await expect(page.locator('.completion-message')).toContainText(completionText)
   })
 
+  test('ghost input animation does not update the form or complete the input condition', async ({ page }) => {
+    await openSettingsStep(page)
+    await expectGhostTypedUsername(page)
+  })
+
   test('skips the username step when the input loses focus', async ({ page }) => {
     const bubble = page.locator('.tutorial-bubble')
     const statePanel = page.locator('.state-panel')
 
-    await startUsernameStep(page)
-    await page.locator('[data-guide="username"]').fill('wrong-user')
-    await expect(bubble).toContainText('输入用户名')
+    await openSettingsStep(page)
+    await expectGhostTypedUsername(page)
 
     await page.locator('[data-guide="theme"]').focus()
     await expect(bubble).toContainText('打开通知')

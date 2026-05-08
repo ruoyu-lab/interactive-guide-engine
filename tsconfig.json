@@ -15,6 +15,7 @@
     "paths": {
       "@guide/engine": ["./packages/engine/src"],
       "@guide/dom-adapter": ["./packages/dom-adapter/src"],
+      "@guide/dom-effects": ["./packages/dom-effects/src"],
       "@guide/dom-renderer": ["./packages/dom-renderer/src"]
     }
   },

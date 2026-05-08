@@ -77,6 +77,63 @@ export type TutorialCondition<TContext extends TutorialContext = TutorialContext
   | TutorialDomCondition
   | TutorialCustomCondition
 
+export type TutorialCursorStyle =
+  | 'macos'
+  | 'macos-dark'
+  | 'glass'
+  | 'ring'
+  | 'touch'
+  | 'dot'
+  | (string & {})
+
+export type TutorialEffectTiming = {
+  delayMs?: number
+  durationMs?: number
+  cursorStyle?: TutorialCursorStyle
+}
+
+export type TutorialCursorMoveEffect = TutorialEffectTiming & {
+  type: 'cursorMove'
+  target: TutorialTarget
+}
+
+export type TutorialCursorClickEffect = TutorialEffectTiming & {
+  type: 'cursorClick'
+  target: TutorialTarget
+}
+
+export type TutorialTypeTextEffect = TutorialEffectTiming & {
+  type: 'typeText'
+  target: TutorialTarget
+  text: string
+  speedMs?: number
+  mode?: 'preview' | 'ghost' | 'perform'
+}
+
+export type TutorialCursorDragEffect = TutorialEffectTiming & {
+  type: 'cursorDrag'
+  source: TutorialTarget
+  target: TutorialTarget
+}
+
+export type TutorialPulseEffect = TutorialEffectTiming & {
+  type: 'pulse'
+  target: TutorialTarget
+}
+
+export type TutorialShakeEffect = TutorialEffectTiming & {
+  type: 'shake'
+  target: TutorialTarget
+}
+
+export type TutorialEffect =
+  | TutorialCursorMoveEffect
+  | TutorialCursorClickEffect
+  | TutorialTypeTextEffect
+  | TutorialCursorDragEffect
+  | TutorialPulseEffect
+  | TutorialShakeEffect
+
 export type TutorialPlacement = 'top' | 'bottom' | 'left' | 'right'
 
 export type TutorialStepPredicate<TContext extends TutorialContext = TutorialContext> = (context: TContext) => boolean
@@ -117,6 +174,7 @@ export type TutorialStep<TContext extends TutorialContext = TutorialContext> = {
   target?: TutorialTarget
   placement?: TutorialPlacement
   waitFor?: TutorialCondition<TContext>
+  effects?: TutorialEffect[]
   showIf?: TutorialStepPredicate<TContext>
   skipIf?: TutorialStepPredicate<TContext>
   onEnter?: TutorialStepLifecycleListener<TContext>
